@@ -37,7 +37,7 @@ func addItem(w http.ResponseWriter, r *http.Request) {
 	defer mutex.Unlock()
 	newItem.ID = nextID
 	nextID++
-	items = append(items, newItem)
+	// items = append(items, newItem)
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(newItem)
 }
