@@ -42,7 +42,7 @@ func TestAddItem(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not marshal item: %v", err)
 	}
-	req, err := http.NewRequest(http.MethodPost, "/items", bytes.NewReader(body))
+	req, err := http.NewRequest(http.MethodPost, "/items/add", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("Could not create request: %v", err)
 	}
@@ -67,62 +67,70 @@ func TestAddItem(t *testing.T) {
 		t.Errorf("Item was not added correctly: %v", items)
 	}
 }
+func TestUpdateItem(t *testing.T) {
+	// Arrange
+	items = []Item{{ID: 1, Name: "Old Item"}}
+	updatedItem := Item{ID: 1, Name: "Updated Item"}
+	body, err := json.Marshal(updatedItem)
+	if err != nil {
+		t.Fatalf("Could not marshal item: %v", err)
+	}
+	req, err := http.NewRequest(http.MethodPut, "/items/update", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Could not create request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
 
-func TestHandleItems(t *testing.T) {
-	// Test GET method
-	t.Run("GET /items", func(t *testing.T) {
-		items = []Item{{ID: 1, Name: "Test Item"}}
-		req, err := http.NewRequest(http.MethodGet, "/items", nil)
-		if err != nil {
-			t.Fatalf("Could not create request: %v", err)
-		}
-		rec := httptest.NewRecorder()
+	// Act
+	updateItem(rec, req)
 
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			switch r.Method {
-			case http.MethodGet:
-				getItems(w)
-			case http.MethodPost:
-				addItem(w, r)
-			default:
-				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			}
-		}).ServeHTTP(rec, req)
+	// Assert
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected status OK; got %v", rec.Code)
+	}
+	var got Item
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("Could not decode response: %v", err)
+	}
+	if got.ID != 1 || got.Name != "Updated Item" {
+		t.Errorf("Unexpected response: %v", got)
+	}
+	if len(items) != 1 || items[0].Name != "Updated Item" {
+		t.Errorf("Item was not updated correctly: %v", items)
+	}
+}
 
-		if rec.Code != http.StatusOK {
-			t.Errorf("Expected status OK; got %v", rec.Code)
-		}
-	})
+func TestDeleteItem(t *testing.T) {
+	// Arrange
+	items = []Item{{ID: 1, Name: "Item to Delete"}}
+	itemToDelete := Item{ID: 1}
+	body, err := json.Marshal(itemToDelete)
+	if err != nil {
+		t.Fatalf("Could not marshal item: %v", err)
+	}
+	req, err := http.NewRequest(http.MethodDelete, "/items/delete", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Could not create request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
 
-	// Test POST method
-	t.Run("POST /items", func(t *testing.T) {
-		items = []Item{}
-		nextID = 1
-		newItem := Item{Name: "New Item"}
-		body, err := json.Marshal(newItem)
-		if err != nil {
-			t.Fatalf("Could not marshal item: %v", err)
-		}
-		req, err := http.NewRequest(http.MethodPost, "/items", bytes.NewReader(body))
-		if err != nil {
-			t.Fatalf("Could not create request: %v", err)
-		}
-		req.Header.Set("Content-Type", "application/json")
-		rec := httptest.NewRecorder()
+	// Act
+	deleteItem(rec, req)
 
-		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			switch r.Method {
-			case http.MethodGet:
-				getItems(w)
-			case http.MethodPost:
-				addItem(w, r)
-			default:
-				http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			}
-		}).ServeHTTP(rec, req)
-
-		if rec.Code != http.StatusCreated {
-			t.Errorf("Expected status Created; got %v", rec.Code)
-		}
-	})
+	// Assert
+	if rec.Code != http.StatusOK {
+		t.Errorf("Expected status OK; got %v", rec.Code)
+	}
+	var got Item
+	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+		t.Fatalf("Could not decode response: %v", err)
+	}
+	if got.ID != 1 || got.Name != "Item to Delete" {
+		t.Errorf("Unexpected response: %v", got)
+	}
+	if len(items) != 0 {
+		t.Errorf("Item was not deleted correctly: %v", items)
+	}
 }
