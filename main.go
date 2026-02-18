@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"sync"
+	"time"
 )
 
 type Item struct {
@@ -14,9 +16,10 @@ type Item struct {
 }
 
 var (
-	items  []Item
-	mutex  sync.Mutex
-	nextID int = 1
+	items          []Item
+	mutex          sync.Mutex
+	nextID         int = 1
+	eventPublisher *EventPublisher
 )
 
 func getItems(w http.ResponseWriter) {
@@ -38,6 +41,19 @@ func addItem(w http.ResponseWriter, r *http.Request) {
 	newItem.ID = nextID
 	nextID++
 	items = append(items, newItem)
+	
+	// Publish event
+	if eventPublisher != nil {
+		event := ItemEvent{
+			Type:      EventItemCreated,
+			Item:      newItem,
+			Timestamp: time.Now(),
+		}
+		if err := eventPublisher.Publish(event); err != nil {
+			log.Printf("Failed to publish event: %v", err)
+		}
+	}
+	
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(newItem)
 }
@@ -54,6 +70,19 @@ func updateItem(w http.ResponseWriter, r *http.Request) {
 	for i, item := range items {
 		if item.ID == updatedItem.ID {
 			items[i] = updatedItem
+			
+			// Publish event
+			if eventPublisher != nil {
+				event := ItemEvent{
+					Type:      EventItemUpdated,
+					Item:      updatedItem,
+					Timestamp: time.Now(),
+				}
+				if err := eventPublisher.Publish(event); err != nil {
+					log.Printf("Failed to publish event: %v", err)
+				}
+			}
+			
 			json.NewEncoder(w).Encode(updatedItem)
 			return
 		}
@@ -73,6 +102,19 @@ func deleteItem(w http.ResponseWriter, r *http.Request) {
 	for i, item := range items {
 		if item.ID == itemToDelete.ID {
 			items = append(items[:i], items[i+1:]...)
+			
+			// Publish event
+			if eventPublisher != nil {
+				event := ItemEvent{
+					Type:      EventItemDeleted,
+					Item:      item,
+					Timestamp: time.Now(),
+				}
+				if err := eventPublisher.Publish(event); err != nil {
+					log.Printf("Failed to publish event: %v", err)
+				}
+			}
+			
 			json.NewEncoder(w).Encode(item)
 			return
 		}
@@ -81,6 +123,22 @@ func deleteItem(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
+	// Initialize event publisher if RabbitMQ URL is provided
+	rabbitMQURL := os.Getenv("RABBITMQ_URL")
+	if rabbitMQURL == "" {
+		rabbitMQURL = "amqp://guest:guest@localhost:5672/" // default
+	}
+	
+	var err error
+	eventPublisher, err = NewEventPublisher(rabbitMQURL)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize event publisher: %v", err)
+		log.Println("Server will continue without event publishing")
+	} else {
+		defer eventPublisher.Close()
+		log.Println("Event publisher initialized successfully")
+	}
+
 	http.HandleFunc("/items", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
