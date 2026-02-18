@@ -1,0 +1,7 @@
+module github.com/us-service/Go-server-crud/examples/consumer
+
+go 1.24.1
+
+require github.com/rabbitmq/amqp091-go v1.10.0
+
+replace github.com/us-service/Go-server-crud => ../..
