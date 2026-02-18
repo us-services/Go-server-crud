@@ -22,13 +22,13 @@ go mod tidy
 ## Run Go server
 ```bash
 # Without RabbitMQ (events will be disabled with warning)
-go run main.go events.go
+go run .
 
 # With RabbitMQ (default: localhost:5672)
-go run main.go events.go
+go run .
 
 # With custom RabbitMQ URL
-RABBITMQ_URL="amqp://user:pass@hostname:5672/" go run main.go events.go
+RABBITMQ_URL="amqp://user:pass@hostname:5672/" go run .
 ```
 
 ## Event-Driven System
@@ -64,10 +64,10 @@ The repository includes an example consumer that listens to events:
 cd examples/consumer
 
 # With default RabbitMQ (localhost:5672)
-go run main.go events.go
+go run .
 
 # With custom RabbitMQ URL
-RABBITMQ_URL="amqp://user:pass@hostname:5672/" go run main.go events.go
+RABBITMQ_URL="amqp://user:pass@hostname:5672/" go run .
 ```
 
 ### Setting up RabbitMQ
